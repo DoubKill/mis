@@ -43,7 +43,6 @@ REST_FRAMEWORK_EXTENSIONS = {
 #     },
 # }
 
-
 DATABASES = {
     'default': {
         'ENGINE': os.getenv('MES_ENGINE', 'django.db.backends.mysql'),  # 数据库引擎
@@ -58,7 +57,7 @@ DATABASES = {
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, '../MCS/dist')],
+        'DIRS': [os.path.join(BASE_DIR, '../gz-manage/dist')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -73,7 +72,7 @@ TEMPLATES = [
 
 STATICFILES_DIRS = [
     # os.path.join(BASE_DIR, 'static'),# 项目默认会有的路径，如果你部署的不仅是前端打包的静态文件，项目目录static文件下还有其他文件，最好不要删
-    os.path.join(BASE_DIR, "../MCS/dist/static"),  # 加上这条
+    os.path.join(BASE_DIR, "../gz-manage/dist/static"),  # 加上这条
 ]
 
 MEDIA_ROOT = os.environ.get('MEDIA_ROOT', os.path.join(BASE_DIR, "media/"))
