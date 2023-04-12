@@ -1,0 +1,11 @@
+migrations
+*venv*
+db.sqlite3
+logs
+.idea
+.svn
+*.DS_Store
+__pycache__
+media
+mes/local_settings.py
+.vscode
