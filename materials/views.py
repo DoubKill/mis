@@ -62,17 +62,21 @@ class MaterialViewSet(ModelViewSet):
         data = handle_df.to_dict(orient='records')
         create_data = []
         for item in data:
-            s_data = {'seq': item.get('序号', None), 'choice': item.get('选择', None), 'business_type': item.get('业务类型', None),
+            choice = item.get('选择', None)
+            if choice in ['小计', '合计']:
+                continue
+            s_data = {'seq': item.get('序号', None), 'choice': choice, 'business_type': item.get('业务类型', None),
                       'order_id': item.get('订单编号', None), 'f_date': item.get('日期').date() if item.get('日期') else None,
                       'department': item.get('部门', None), 'salesman': item.get('业务员', None), 'currency': item.get('币种', None),
                       'inventory_code': item.get('存货编码', None), 'inventory_name': item.get('存货名称', None), 'supplier': item.get('供应商', None),
-                      'specification': item.get('规格型号', None), 'unit': item.get('单位', None), 'quantity': item.get('数量', None),
-                      'tax_unit_price': item.get('含税单价', None), 'unit_price': item.get('单价', None), 'amount': item.get('金额', None),
-                      'tax_rate': item.get('税率', None), 'total_value_tax': item.get('价税合计', None), 'pay_terms': item.get('付款条件', None),
+                      'specification': item.get('规格型号', None), 'unit': item.get('主计量', None), 'quantity': item.get('数量', None),
+                      'tax_unit_price': item.get('原币含税单价', None), 'unit_price': item.get('原币单价', None), 'amount': item.get('原币金额', None),
+                      'tax_rate': item.get('税率', None), 'total_value_tax': item.get('原币价税合计', None), 'pay_terms': item.get('付款条件', None),
                       'cumulative_export_quantity': item.get('累计出口数量', None), 'project_code': item.get('项目编码', None),
                       'project_name': item.get('项目名称', None), 'documenter': item.get('制单人', None), 'closers': item.get('行关闭人', None),
-                      'requirement_desc': item.get('需求说明', None), 'unbilled': item.get('未开票数量', None), 'billing_status': item.get('开票状态', None),
-                      'plan_arrive_date': item.get('计划到货日期').date() if item.get('计划到货日期') else None, 'cumulative_billed': item.get('累计开票数量', None)}
+                      'requirement_desc': item.get('需求分类代码说明', None), 'unbilled': item.get('未开票量', None), 'billing_status': item.get('开票状态', None),
+                      'plan_arrive_date': item.get('计划到货日期').date() if item.get('计划到货日期') else None, 'cumulative_billed': item.get('累计开票量', None),
+                      'tax_amount': item.get('原币税额', None)}
             create_data.append(s_data)
         if not create_data:
             raise ValidationError('未找到可导入的有效数据!')
