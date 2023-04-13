@@ -10,6 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
+from basics.models import GlobalCode
 from materials.filters import MaterialFilter
 from materials.models import Material, MaterialSetting
 from materials.serializers import MaterialSerializer, MaterialDisplaySerializer
@@ -52,6 +53,13 @@ class MaterialViewSet(ModelViewSet):
         df = pd.read_excel(import_excel)
         if df.empty:
             raise ValidationError('文件内容为空!')
+        # 获取默认排序
+        g_set = set(list(GlobalCode.objects.filter(delete_flag=False, global_type__delete_flag=False, global_type__type_name='物料信息列顺序').order_by('seq').values_list('description', flat=True)))
+        # 存在不同列
+        if set(df.columns) - g_set:
+            raise ValidationError('存在与公用设置不匹配的列!')
+        # 筛选字段
+        df = df[g_set]
         # 已经存在的seq
         exist_seqs = set(Material.objects.values_list('seq', flat=True))
         # 删除已经在exist_seqs中的seq
