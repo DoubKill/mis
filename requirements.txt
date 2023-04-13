@@ -10,3 +10,4 @@ rsa==4.9
 xlrd==1.2.0
 pandas==1.3.5
 django_extensions==2.1.9
+mysqlclient==2.1.0
