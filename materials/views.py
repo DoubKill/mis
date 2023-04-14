@@ -19,7 +19,7 @@ from mis.derorators import api_recorder
 
 @method_decorator([api_recorder], name="dispatch")
 class MaterialViewSet(ModelViewSet):
-    queryset = Material.objects.all()
+    queryset = Material.objects.all().order_by('id')
     serializer_class = MaterialSerializer
     permission_classes = (IsAuthenticated,)
     filter_class = MaterialFilter
@@ -55,26 +55,28 @@ class MaterialViewSet(ModelViewSet):
         if df.empty:
             raise ValidationError('文件内容为空!')
         # 获取默认排序
-        g_set = set(list(GlobalCode.objects.filter(delete_flag=False, global_type__delete_flag=False, global_type__type_name='物料信息列顺序').order_by('seq').values_list('global_name', flat=True)))
+        g_set = list(GlobalCode.objects.filter(delete_flag=False, global_type__delete_flag=False, global_type__type_name='物料信息列顺序').order_by('seq').values_list('global_name', flat=True))
         # 存在不同列
-        if set(df.columns) - g_set:
+        if set(df.columns) - set(g_set):
             raise ValidationError('存在与公用设置不匹配的列!')
         # 筛选字段
         df = df[g_set]
-        # 已经存在的seq
-        exist_seqs = set(Material.objects.values_list('seq', flat=True))
-        # 删除已经在exist_seqs中的seq
-        df = df[~df['序号'].isin(exist_seqs)]
+        # # 已经存在的seq
+        # exist_seqs = set(Material.objects.values_list('seq', flat=True))
+        # # 删除已经在exist_seqs中的seq
+        # df = df[~df['序号'].isin(exist_seqs)]
+        # 全部导入
+        filter_df = df[~df['序号'].isna() & ~df['选择'].isin(['小计', '合计'])]
+        if filter_df.empty:
+            raise ValidationError('未找到有效数据!')
+        self.get_queryset().delete()
         # 替换NAN为None
-        handle_df = df.replace({np.nan: None})
+        handle_df = filter_df.replace({np.nan: None})
         # 将dataframe转换为字典
         data = handle_df.to_dict(orient='records')
         create_data = []
         for item in data:
-            choice = item.get('选择', None)
-            if choice in ['小计', '合计']:
-                continue
-            s_data = {'seq': item.get('序号', None), 'choice': choice, 'business_type': item.get('业务类型', None),
+            s_data = {'seq': item.get('序号', None), 'choice': item.get('选择', None), 'business_type': item.get('业务类型', None),
                       'order_id': item.get('订单编号', None), 'f_date': item.get('日期').date() if item.get('日期') else None,
                       'department': item.get('部门', None), 'salesman': item.get('业务员', None), 'currency': item.get('币种', None),
                       'inventory_code': item.get('存货编码', None), 'inventory_name': item.get('存货名称', None), 'supplier': item.get('供应商', None),
@@ -86,14 +88,15 @@ class MaterialViewSet(ModelViewSet):
                       'requirement_desc': item.get('需求分类代码说明', None), 'unbilled': item.get('未开票量', None), 'billing_status': item.get('开票状态', None),
                       'plan_arrive_date': item.get('计划到货日期').date() if item.get('计划到货日期') else None, 'cumulative_billed': item.get('累计开票量', None),
                       'tax_amount': item.get('原币税额', None)}
-            create_data.append(s_data)
+            create_data.append(Material(**s_data))
         if not create_data:
             raise ValidationError('未找到可导入的有效数据!')
-        serializer = self.get_serializer(data=create_data, many=True)
-        if not serializer.is_valid():
-            raise ValidationError('导入数据有误，请检查后重试!')
-        self.perform_create(serializer)
-        return Response(serializer.data)
+        # serializer = self.get_serializer(data=create_data, many=True)
+        # if not serializer.is_valid():
+        #     raise ValidationError('导入数据有误，请检查后重试!')
+        # self.perform_create(serializer)
+        Material.objects.bulk_create(create_data)
+        return Response(f'导入{len(create_data)}条数据成功!')
 
 
 @method_decorator([api_recorder], name="dispatch")
