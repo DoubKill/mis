@@ -31,8 +31,9 @@ class MaterialViewSet(ModelViewSet):
         # 选中返回的列: 默认返回序号、日期、币种、主计量单位、数量、含税单价、单价、金额、税率、价税合计、累计出口数量
         material_set = MaterialSetting.objects.order_by('id').last()
         if not material_set:
-            display_columns = ['seq', 'f_date', 'currency', 'unit', 'quantity', 'tax_unit_price', 'unit_price', 'amount',
-                               'total_value_tax', 'cumulative_export_quantity']
+            display_columns = ['seq', 'f_date', 'currency', 'inventory_code', 'inventory_name', 'specification',
+                               'unit', 'quantity', 'tax_unit_price', 'unit_price', 'amount', 'total_value_tax',
+                               'cumulative_export_quantity', 'project_code', 'project_name']
         else:
             display_columns = material_set.display_columns.split(',')
 
