@@ -61,12 +61,8 @@ class MaterialViewSet(ModelViewSet):
             raise ValidationError('存在与公用设置不匹配的列!')
         # 筛选字段
         df = df[g_set]
-        # # 已经存在的seq
-        # exist_seqs = set(Material.objects.values_list('seq', flat=True))
-        # # 删除已经在exist_seqs中的seq
-        # df = df[~df['序号'].isin(exist_seqs)]
         # 全部导入
-        filter_df = df[~df['序号'].isna() & ~df['选择'].isin(['小计', '合计'])]
+        filter_df = df[~df['选择'].isin(['小计', '合计'])].dropna(how='all')
         if filter_df.empty:
             raise ValidationError('未找到有效数据!')
         self.get_queryset().delete()
@@ -91,10 +87,6 @@ class MaterialViewSet(ModelViewSet):
             create_data.append(Material(**s_data))
         if not create_data:
             raise ValidationError('未找到可导入的有效数据!')
-        # serializer = self.get_serializer(data=create_data, many=True)
-        # if not serializer.is_valid():
-        #     raise ValidationError('导入数据有误，请检查后重试!')
-        # self.perform_create(serializer)
         Material.objects.bulk_create(create_data)
         return Response(f'导入{len(create_data)}条数据成功!')
 
