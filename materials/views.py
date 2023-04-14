@@ -55,7 +55,7 @@ class MaterialViewSet(ModelViewSet):
         if df.empty:
             raise ValidationError('文件内容为空!')
         # 获取默认排序
-        g_set = set(list(GlobalCode.objects.filter(delete_flag=False, global_type__delete_flag=False, global_type__type_name='物料信息列顺序').order_by('seq').values_list('description', flat=True)))
+        g_set = set(list(GlobalCode.objects.filter(delete_flag=False, global_type__delete_flag=False, global_type__type_name='物料信息列顺序').order_by('seq').values_list('global_name', flat=True)))
         # 存在不同列
         if set(df.columns) - g_set:
             raise ValidationError('存在与公用设置不匹配的列!')
