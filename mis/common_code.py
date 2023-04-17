@@ -14,8 +14,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from mis import settings
-from openpyxl import load_workbook
-
+from openpyxl import load_workbook, cell
+from openpyxl.utils import get_column_letter
 
 # 通用导出视图
 from user.models import User, Permissions
@@ -78,6 +78,20 @@ class CommonBatchDestroyView(GenericAPIView):
         return Response('ok')
 
 
+def len_byte(value):
+    if value is None or value == "":
+        return 10
+    if type(value) != int:
+        if type(value) == float:
+            value = str(value)
+        length = len(value)
+        utf8_length = len(value.encode('utf-8'))
+        length = (utf8_length - length) / 2 + length
+    else:
+        length = len(str(value))
+    return int(length)
+
+
 # 数据导出通用方法 ===>服务器上生成导出文件，前端访问，通过nginx服务器返回更高效
 def gen_template_response(export_fields_dict, data, file_name,
                           sheet_name='sheet1', template_file='xlsx_template/example.xlsx'):
@@ -93,15 +107,27 @@ def gen_template_response(export_fields_dict, data, file_name,
     sheet = wb.worksheets[0]
     if sheet_name:
         sheet.title = sheet_name
+    col_width = {}
     for idx, sheet_head in enumerate(sheet_heads):
         sheet.cell(1, idx + 1).value = sheet_head
+        h_w = 256 * (len_byte(sheet_head) + 2)
+        col_width[sheet_head] = h_w if h_w <= 65536 else 65536
 
     data_row = 2
     for i in data:
         for col_num, data_key in enumerate(export_fields):
             set_value = i[data_key]
+            if isinstance(set_value, str):
+                set_value = cell.cell.ILLEGAL_CHARACTERS_RE.sub(r'', set_value)
             sheet.cell(data_row, col_num + 1).value = set_value
+            # 设置宽度
+            c_width = 256 * (len_byte(set_value) + 2) if 256 * (len_byte(set_value) + 2) <= 65536 else 65536
+            if col_width[sheet_heads[col_num]] < c_width:
+                col_width[sheet_heads[col_num]] = c_width
         data_row += 1
+    # 设置宽度
+    for col_num, data_key in enumerate(sheet_heads):
+        sheet.column_dimensions[get_column_letter(col_num + 1)].width = col_width[data_key] / 256
 
     wb.save(excel_file)
     out_url = excel_file.replace(settings.MEDIA_ROOT, settings.MEDIA_URL, 1)

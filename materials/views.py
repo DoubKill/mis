@@ -14,6 +14,7 @@ from basics.models import GlobalCode
 from materials.filters import MaterialFilter
 from materials.models import Material, MaterialSetting
 from materials.serializers import MaterialSerializer, MaterialDisplaySerializer
+from mis.common_code import gen_template_response
 from mis.derorators import api_recorder
 
 
@@ -24,6 +25,14 @@ class MaterialViewSet(ModelViewSet):
     permission_classes = (IsAuthenticated,)
     filter_class = MaterialFilter
     filter_backends = (DjangoFilterBackend,)
+    SHEET_NAME = '价格查询'
+    TEMPLATE_FILE = 'xlsx_template/example.xlsx'
+    FILE_NAME = '批量查询单价.xlsx'
+    EXPORT_FIELDS_DICT = {
+        '存货编码': 'inventory_code',
+        '规格型号': 'specification',
+        '原币单价': 'unit_price'
+    }
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
@@ -45,6 +54,61 @@ class MaterialViewSet(ModelViewSet):
 
         data = self.get_serializer(queryset, many=True).data
         return Response({'results': data, 'display_columns': display_columns})
+
+    @action(methods=['post'], detail=False, url_path='multi-query', url_name='multi_query')
+    def multi_query(self, request):
+        query_file = request.FILES.get('query_file', None)  # 存货编码、规格型号、单价
+        if not query_file:
+            raise ValidationError('查询文件不可为空!')
+        df = pd.read_excel(query_file)
+        if df.empty:
+            raise ValidationError('查询文件内容为空!')
+        # 获取默认排序
+        material_set = GlobalCode.objects.filter(delete_flag=False, global_type__delete_flag=False, global_type__type_name='物料信息列顺序').order_by('seq')
+        g_set = list(material_set.values_list('global_name', flat=True))
+        # 存在不同列
+        if set(df.columns) - set(g_set):
+            raise ValidationError('存在与公用设置不匹配的列!')
+        # 全部导入
+        filter_df = df.dropna(how='all')
+        if filter_df.empty:
+            raise ValidationError('未找到有效数据!')
+        # set_df 数量不能大于相应数量
+        limit_set = GlobalCode.objects.filter(delete_flag=False, global_type__delete_flag=False, global_type__type_name='批量查询限制').last()
+        try:
+            limit_num = 20 if not limit_set else int(limit_set.global_name)
+        except:
+            raise ValidationError('批量查询限制设置错误!')
+        if len(filter_df) > limit_num:
+            raise ValidationError(f'一次查询不能超过{limit_num}条数据!')
+        # 替换NAN为None
+        handle_df = filter_df.replace({np.nan: None})
+        # 所有查询条件
+        data = handle_df.to_dict(orient='records')
+        # 查询结果
+        results = []
+        for item in data:
+            inventory_code, specification, unit_price = item.get('存货编码'), item.get('规格型号'), item.get('原币单价')
+            inventory_code = '' if not inventory_code else (inventory_code.strip() if isinstance(inventory_code, str) else str(inventory_code).rstrip('.0'))
+            specification = '' if not specification else (specification.strip() if isinstance(specification, str) else str(specification).rstrip('.0'))
+            unit_price = '' if not unit_price else unit_price
+            if all([inventory_code, specification]):
+                _s_data = {'inventory_code': inventory_code, 'specification': specification, 'unit_price': unit_price}
+            else:
+                filter_kwargs = {}
+                if inventory_code:
+                    filter_kwargs['inventory_code'] = inventory_code
+                if specification:
+                    filter_kwargs['specification'] = specification
+                instance = Material.objects.filter(**filter_kwargs).last()
+                if instance:
+                    _s_data = {'inventory_code': instance.inventory_code, 'specification': instance.specification, 'unit_price': instance.unit_price}
+                else:
+                    _s_data = {'inventory_code': inventory_code, 'specification': specification, 'unit_price': unit_price}
+            results.append(_s_data)
+
+        return gen_template_response(self.EXPORT_FIELDS_DICT, results, self.FILE_NAME, self.SHEET_NAME, self.TEMPLATE_FILE)
+
 
     @atomic
     def create(self, request, *args, **kwargs):
@@ -72,10 +136,13 @@ class MaterialViewSet(ModelViewSet):
         data = handle_df.to_dict(orient='records')
         create_data = []
         for item in data:
+            inventory_code = item.get('存货编码', None)
+            if inventory_code:
+                inventory_code = str(int(inventory_code))
             s_data = {'seq': item.get('序号', None), 'choice': item.get('选择', None), 'business_type': item.get('业务类型', None),
                       'order_id': item.get('订单编号', None), 'f_date': item.get('日期').date() if item.get('日期') else None,
                       'department': item.get('部门', None), 'salesman': item.get('业务员', None), 'currency': item.get('币种', None),
-                      'inventory_code': item.get('存货编码', None), 'inventory_name': item.get('存货名称', None), 'supplier': item.get('供应商', None),
+                      'inventory_code': inventory_code, 'inventory_name': item.get('存货名称', None), 'supplier': item.get('供应商', None),
                       'specification': item.get('规格型号', None), 'unit': item.get('主计量', None), 'quantity': item.get('数量', None),
                       'tax_unit_price': item.get('原币含税单价', None), 'unit_price': item.get('原币单价', None), 'amount': item.get('原币金额', None),
                       'tax_rate': item.get('税率', None), 'total_value_tax': item.get('原币价税合计', None), 'pay_terms': item.get('付款条件', None),

@@ -14,13 +14,6 @@ jwt_get_username_from_payload = api_settings.JWT_PAYLOAD_GET_USERNAME_HANDLER
 
 class MaterialSerializer(BaseModelSerializer):
 
-    def to_representation(self, instance):
-        res = super().to_representation(instance)
-        # 去除存货编码的小数点
-        if res['inventory_code']:
-            res['inventory_code'] = res['inventory_code'].rsplit('.', maxsplit=1)[0]
-        return res
-
     class Meta:
         model = Material
         fields = '__all__'
