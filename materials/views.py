@@ -1,6 +1,7 @@
 # Create your views here.
 import pandas as pd
 import numpy as np
+from datetime import datetime
 from django.db.transaction import atomic
 from django.utils.decorators import method_decorator
 from django_filters.rest_framework import DjangoFilterBackend
@@ -27,7 +28,6 @@ class MaterialViewSet(ModelViewSet):
     filter_backends = (DjangoFilterBackend,)
     SHEET_NAME = '价格查询'
     TEMPLATE_FILE = 'xlsx_template/example.xlsx'
-    FILE_NAME = '批量查询单价.xlsx'
     EXPORT_FIELDS_DICT = {
         '存货编码': 'inventory_code',
         '规格型号': 'specification',
@@ -106,18 +106,22 @@ class MaterialViewSet(ModelViewSet):
                 else:
                     _s_data = {'inventory_code': inventory_code, 'specification': specification, 'unit_price': unit_price}
             results.append(_s_data)
-
-        return gen_template_response(self.EXPORT_FIELDS_DICT, results, self.FILE_NAME, self.SHEET_NAME, self.TEMPLATE_FILE)
-
+        file_name = f'批量查询单价{datetime.now().strftime("%Y-%m-%d %H_%M_%S")}.xlsx'
+        return gen_template_response(self.EXPORT_FIELDS_DICT, results, file_name, self.SHEET_NAME, self.TEMPLATE_FILE)
 
     @atomic
     def create(self, request, *args, **kwargs):
         import_excel = request.FILES.get('file', None)
+        ignore_flag = request.data.get('ignore_flag', False)
         if not import_excel:
             raise ValidationError('文件不可为空!')
         df = pd.read_excel(import_excel)
         if df.empty:
             raise ValidationError('文件内容为空!')
+        # 必须导入的项目
+        must_set = ['存货编码', '存货名称', '规格型号', '原币含税单价', '原币单价']
+        if set(df.columns) & set(must_set) != set(must_set):
+            raise ValidationError('导入数据必须包含存货编码、存货名称、规格型号、原币含税单价、原币单价!')
         # 获取默认排序
         g_set = list(GlobalCode.objects.filter(delete_flag=False, global_type__delete_flag=False, global_type__type_name='物料信息列顺序').order_by('seq').values_list('global_name', flat=True))
         # 存在不同列
@@ -129,6 +133,9 @@ class MaterialViewSet(ModelViewSet):
         filter_df = df[~df['选择'].isin(['小计', '合计'])].dropna(how='all')
         if filter_df.empty:
             raise ValidationError('未找到有效数据!')
+        # 校验filter_df中必填字段是否存在为空的情况
+        if not ignore_flag and filter_df[must_set].isna().any().any():
+            raise ValidationError('ignore_flag-导入数据必须包含存货编码、存货名称、规格型号、原币含税单价、原币单价!')
         self.get_queryset().delete()
         # 替换NAN为None
         handle_df = filter_df.replace({np.nan: None})
