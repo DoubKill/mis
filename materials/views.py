@@ -135,7 +135,7 @@ class MaterialViewSet(ModelViewSet):
             raise ValidationError('未找到有效数据!')
         # 校验filter_df中必填字段是否存在为空的情况
         if not ignore_flag and filter_df[must_set].isna().any().any():
-            raise ValidationError('ignore_flag-导入数据必须包含存货编码、存货名称、规格型号、原币含税单价、原币单价!')
+            return Response({'msg': '导入数据必须包含存货编码、存货名称、规格型号、原币含税单价、原币单价!', 'ignore_flag': False})
         self.get_queryset().delete()
         # 替换NAN为None
         handle_df = filter_df.replace({np.nan: None})
