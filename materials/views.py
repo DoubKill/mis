@@ -36,7 +36,10 @@ class MaterialViewSet(ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
-
+        # 数据导入日期
+        l_record = self.get_queryset().last()
+        export_date = '' if not l_record else l_record.created_time.strftime('%Y/%m/%d')
+        export_user = '' if not l_record else l_record.created_user.username
         # 选中返回的列: 默认返回序号、日期、币种、主计量单位、数量、含税单价、单价、金额、税率、价税合计、累计出口数量
         material_set = MaterialSetting.objects.order_by('id').last()
         if not material_set:
@@ -50,10 +53,10 @@ class MaterialViewSet(ModelViewSet):
         if page is not None:
             data = self.get_serializer(page, many=True).data
             response = self.get_paginated_response(data)
-            return Response({**response.data, 'display_columns': display_columns})
+            return Response({**response.data, 'display_columns': display_columns, 'export_date': export_date, 'export_user': export_user})
 
         data = self.get_serializer(queryset, many=True).data
-        return Response({'results': data, 'display_columns': display_columns})
+        return Response({'results': data, 'display_columns': display_columns, 'export_date': export_date, 'export_user': export_user})
 
     @action(methods=['post'], detail=False, url_path='multi-query', url_name='multi_query')
     def multi_query(self, request):
@@ -157,7 +160,7 @@ class MaterialViewSet(ModelViewSet):
                       'project_name': item.get('项目名称', None), 'documenter': item.get('制单人', None), 'closers': item.get('行关闭人', None),
                       'requirement_desc': item.get('需求分类代码说明', None), 'unbilled': item.get('未开票量', None), 'billing_status': item.get('开票状态', None),
                       'plan_arrive_date': item.get('计划到货日期').date() if item.get('计划到货日期') else None, 'cumulative_billed': item.get('累计开票量', None),
-                      'tax_amount': item.get('原币税额', None)}
+                      'tax_amount': item.get('原币税额', None), 'created_user': request.user}
             create_data.append(Material(**s_data))
         if not create_data:
             raise ValidationError('未找到可导入的有效数据!')
