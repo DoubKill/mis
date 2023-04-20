@@ -40,7 +40,10 @@ permission_data = [
     {'id': 20, 'code': 'add_material', 'name': '物料信息显示设定', 'parent_id': 17},
     {'id': 21, 'code': 'multi_material', 'name': '批量查询', 'parent_id': 17},
 
-    # 下一个开始: 22
+    {'id': 22, 'code': 'user_operation_log', 'name': '操作日志查询', 'parent_id': None, 'category_name': '系统管理'},
+    {'id': 23, 'code': 'view_user_operation_log', 'name': '查看', 'parent_id': 22},
+
+    # 下一个开始: 24
 
 ]
 
