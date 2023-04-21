@@ -180,7 +180,7 @@ class UserViewSet(CommonExportListMixin, CommonBatchDestroyView, ModelViewSet):
 
 
 @method_decorator([api_recorder], name="dispatch")
-class GroupExtensionViewSet(CommonExportListMixin, CommonBatchDestroyView, ModelViewSet):
+class GroupExtensionViewSet(CommonExportListMixin, ModelViewSet):
     """
     list:
         角色列表,xxx?all=1查询所有
@@ -204,6 +204,16 @@ class GroupExtensionViewSet(CommonExportListMixin, CommonBatchDestroyView, Model
             return ()
         else:
             return (IsAuthenticated(),)
+
+    @atomic()
+    @action(methods=['post'], detail=False, permission_classes=[IsAuthenticated], url_path='batch-destroy', url_name='batch-destroy')
+    def batch_destroy(self, request):
+        obj_ids = self.request.data.get('obj_ids')
+        groups = self.get_queryset().filter(id__in=obj_ids, group_users__isnull=False)
+        if groups:
+            raise ValidationError('存在被使用的角色, 请解除关联后删除！')
+        self.get_queryset().filter(id__in=obj_ids).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     def destroy(self, request, *args, **kwargs):
         # 账号停用和启用
@@ -292,6 +302,14 @@ class DepartmentViewSet(CommonExportListMixin, CommonBatchDestroyView, ModelView
                      "children": []})
                 index_tree[department.parent_section_id]["children"].append(index_tree[department.id])
         return Response({'results': data})
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.section_users.filter(delete_flag=False).exists():
+            raise ValidationError('操作无效，该部门下存在用户！')
+        if instance.children_sections.exists():
+            raise ValidationError('操作无效，该部门下存在子部门！')
+        return super().destroy(request, *args, **kwargs)
 
     @action(methods=['get'], detail=False, permission_classes=[IsAuthenticated], url_path='tree',
             url_name='tree')
