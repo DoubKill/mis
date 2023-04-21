@@ -15,7 +15,7 @@ from basics.models import GlobalCode
 from materials.filters import MaterialFilter
 from materials.models import Material, MaterialSetting
 from materials.serializers import MaterialSerializer, MaterialDisplaySerializer
-from mis.common_code import gen_template_response
+from mis.common_code import gen_template_response, operate_record
 from mis.derorators import api_recorder
 
 
@@ -89,26 +89,34 @@ class MaterialViewSet(ModelViewSet):
         # 所有查询条件
         data = handle_df.to_dict(orient='records')
         # 查询结果
-        results = []
+        results, code_list, specification_list = [], [], []
         for item in data:
             inventory_code, specification, unit_price = item.get('存货编码'), item.get('规格型号'), item.get('原币单价')
             inventory_code = '' if not inventory_code else (inventory_code.strip() if isinstance(inventory_code, str) else str(inventory_code).rstrip('.0'))
             specification = '' if not specification else (specification.strip() if isinstance(specification, str) else str(specification).rstrip('.0'))
             unit_price = '' if not unit_price else unit_price
+            filter_kwargs = {}
             if all([inventory_code, specification]):
-                _s_data = {'inventory_code': inventory_code, 'specification': specification, 'unit_price': unit_price}
+                filter_kwargs = {'inventory_code': inventory_code, 'specification': specification}
+                code_list.append(inventory_code)
             else:
-                filter_kwargs = {}
                 if inventory_code:
                     filter_kwargs['inventory_code'] = inventory_code
+                    code_list.append(inventory_code)
                 if specification:
                     filter_kwargs['specification'] = specification
-                instance = Material.objects.filter(**filter_kwargs).last()
-                if instance:
-                    _s_data = {'inventory_code': instance.inventory_code, 'specification': instance.specification, 'unit_price': instance.unit_price}
-                else:
-                    _s_data = {'inventory_code': inventory_code, 'specification': specification, 'unit_price': unit_price}
+                    specification_list.append(specification)
+            instance = Material.objects.filter(**filter_kwargs).last()
+            if instance:
+                _s_data = {'inventory_code': instance.inventory_code, 'specification': instance.specification, 'unit_price': instance.unit_price}
+            else:
+                _s_data = {'inventory_code': inventory_code, 'specification': specification, 'unit_price': unit_price}
             results.append(_s_data)
+        # 记录履历
+        code_str = ','.join(code_list)
+        specification_str = ','.join(specification_list)
+        operate_record({'operator_type': '批量查询', 'operator_reason': '批量查询物料信息查询', 'operator_user': self.request.user.username,
+                        'operation_detail': f"批量查询{len(results)}条物料编码-编码:{code_str}, 规格: {specification_str}"})
         file_name = f'批量查询单价{datetime.now().strftime("%Y-%m-%d %H_%M_%S")}.xlsx'
         return gen_template_response(self.EXPORT_FIELDS_DICT, results, file_name, self.SHEET_NAME, self.TEMPLATE_FILE)
 

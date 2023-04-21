@@ -4,6 +4,7 @@ from rest_framework_jwt.settings import api_settings
 from basics.models import GlobalCode
 from basics.serializers import BaseModelSerializer
 from materials.models import Material, MaterialSetting
+from mis.common_code import operate_record
 from mis.settings import COMMON_READ_ONLY_FIELDS
 
 jwt_payload_handler = api_settings.JWT_PAYLOAD_HANDLER
@@ -21,11 +22,13 @@ class MaterialSerializer(BaseModelSerializer):
 
 
 class MaterialDisplaySerializer(BaseModelSerializer):
+    display_columns_zh = serializers.CharField(max_length=512, help_text='显示列中文', write_only=True)
 
     def create(self, validated_data):
         display_columns = validated_data.get('display_columns', None)
         if not display_columns:
             raise serializers.ValidationError('至少选择一列!')
+        display_columns_zh = validated_data.pop('display_columns_zh', '')
         columns = display_columns.split(',')
         # 获取默认排序
         g_set = list(GlobalCode.objects.filter(delete_flag=False, global_type__delete_flag=False, global_type__type_name='物料信息列顺序',
@@ -36,6 +39,9 @@ class MaterialDisplaySerializer(BaseModelSerializer):
             raise serializers.ValidationError('请检查列顺序公用代码设置！')
         validated_data['display_columns'] = ','.join(g_set)
         instance = super().create(validated_data)
+        # 记录履历
+        operate_record({'operator_type': '设定显示列', 'operator_reason': '设定显示物料信息查询', 'operator_user': self.context['request'].user.username,
+                        'operation_detail': f'设定显示列内容: {display_columns_zh}'})
         return instance
 
     class Meta:

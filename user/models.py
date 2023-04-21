@@ -118,6 +118,7 @@ class UserOperationLog(models.Model):
     operator_type = models.CharField(max_length=64, help_text='操作类型')
     operator_reason = models.CharField(max_length=64, help_text='操作原因')
     operation_desc = models.JSONField(help_text='操作描述', null=True, blank=True)
+    operation_detail = models.TextField(help_text='操作详情', null=True, blank=True)
 
     class Meta:
         db_table = 'user_operation_log'

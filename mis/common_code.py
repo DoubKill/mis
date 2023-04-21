@@ -1,3 +1,4 @@
+import logging
 import os
 from urllib import parse
 from io import BytesIO
@@ -16,6 +17,10 @@ from rest_framework.response import Response
 from mis import settings
 from openpyxl import load_workbook, cell
 from openpyxl.utils import get_column_letter
+
+from user.serializers import UserOperationLogSerializer
+
+error_logger = logging.getLogger('error_log')
 
 # 通用导出视图
 from user.models import User, Permissions
@@ -166,6 +171,14 @@ def get_sheet_data(sheet, start_row=1):
     for i in range(start_row, rows_num):
         ret[i - start_row] = sheet.row_values(i)
     return ret
+
+
+def operate_record(data):
+    serializer = UserOperationLogSerializer(data=data)
+    if not serializer.is_valid():
+        error_logger.error(f'记录操作履历出现异常: {serializer.error_messages}')
+    else:
+        serializer.save()
 
 
 class UserFunctions(object):
