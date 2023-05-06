@@ -30,6 +30,7 @@ class MaterialViewSet(ModelViewSet):
     TEMPLATE_FILE = 'xlsx_template/example.xlsx'
     EXPORT_FIELDS_DICT = {
         '存货编码': 'inventory_code',
+        '存货名称': 'inventory_name',
         '规格型号': 'specification',
         '原币单价': 'unit_price'
     }
@@ -60,7 +61,7 @@ class MaterialViewSet(ModelViewSet):
 
     @action(methods=['post'], detail=False, url_path='multi-query', url_name='multi_query')
     def multi_query(self, request):
-        query_file = request.FILES.get('query_file', None)  # 存货编码、规格型号、单价
+        query_file = request.FILES.get('query_file', None)  # 存货编码、存货名称、规格型号、单价
         if not query_file:
             raise ValidationError('查询文件不可为空!')
         df = pd.read_excel(query_file)
@@ -89,34 +90,41 @@ class MaterialViewSet(ModelViewSet):
         # 所有查询条件
         data = handle_df.to_dict(orient='records')
         # 查询结果
-        results, code_list, specification_list = [], [], []
+        results, code_list, name_list, specification_list = [], [], [], []
         for item in data:
-            inventory_code, specification, unit_price = item.get('存货编码'), item.get('规格型号'), item.get('原币单价')
+            inventory_code, inventory_name, specification, unit_price = item.get('存货编码'), item.get('存货名称'), item.get('规格型号'), item.get('原币单价')
             inventory_code = '' if not inventory_code else (inventory_code.strip() if isinstance(inventory_code, str) else str(inventory_code).rstrip('.0'))
+            inventory_name = '' if not inventory_name else (inventory_name.strip() if isinstance(inventory_name, str) else str(inventory_name).rstrip('.0'))
             specification = '' if not specification else (specification.strip() if isinstance(specification, str) else str(specification).rstrip('.0'))
             unit_price = '' if not unit_price else unit_price
             filter_kwargs = {}
-            if all([inventory_code, specification]):
-                filter_kwargs = {'inventory_code': inventory_code, 'specification': specification}
+            if all([inventory_code, inventory_name, specification]):
+                filter_kwargs = {'inventory_code': inventory_code, 'inventory_name': inventory_name, 'specification': specification}
                 code_list.append(inventory_code)
             else:
                 if inventory_code:
                     filter_kwargs['inventory_code'] = inventory_code
                     code_list.append(inventory_code)
+                if inventory_name:
+                    filter_kwargs['inventory_name'] = inventory_name
+                    name_list.append(inventory_name)
                 if specification:
                     filter_kwargs['specification'] = specification
                     specification_list.append(specification)
             instance = Material.objects.filter(**filter_kwargs).last()
             if instance:
-                _s_data = {'inventory_code': instance.inventory_code, 'specification': instance.specification, 'unit_price': instance.unit_price}
+                _s_data = {'inventory_code': instance.inventory_code, 'inventory_name': instance.inventory_name,
+                           'specification': instance.specification, 'unit_price': instance.unit_price}
             else:
-                _s_data = {'inventory_code': inventory_code, 'specification': specification, 'unit_price': unit_price}
+                _s_data = {'inventory_code': inventory_code, 'inventory_name': inventory_name,
+                           'specification': specification, 'unit_price': unit_price}
             results.append(_s_data)
         # 记录履历
         code_str = ','.join(code_list)
+        name_str = ','.join(name_list)
         specification_str = ','.join(specification_list)
         operate_record({'operator_type': '批量查询', 'operator_reason': '批量查询物料信息查询', 'operator_user': self.request.user.username,
-                        'operation_detail': f"批量查询{len(results)}条物料编码-编码:{code_str}, 规格: {specification_str}"})
+                        'operation_detail': f"批量查询{len(results)}条物料编码-编码:{code_str}, 名称: {name_str}, 规格: {specification_str}"})
         file_name = f'批量查询单价{datetime.now().strftime("%Y-%m-%d %H_%M_%S")}.xlsx'
         return gen_template_response(self.EXPORT_FIELDS_DICT, results, file_name, self.SHEET_NAME, self.TEMPLATE_FILE)
 

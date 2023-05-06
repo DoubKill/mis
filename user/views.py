@@ -349,7 +349,7 @@ class DepartmentViewSet(CommonExportListMixin, CommonBatchDestroyView, ModelView
 class UserOperationLogViewSet(CommonExportListMixin, ModelViewSet):
     queryset = UserOperationLog.objects.order_by('-id')
     serializer_class = UserOperationLogSerializer
-    permission_classes = (IsAuthenticated, )
+    # permission_classes = (IsAuthenticated, )
     filter_backends = (DjangoFilterBackend, )
     filter_class = UserOperationLogFilter
     EXPORT_FIELDS_DICT = {
