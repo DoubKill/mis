@@ -111,7 +111,7 @@ class MaterialViewSet(ModelViewSet):
                 if specification:
                     filter_kwargs['specification'] = specification
                     specification_list.append(specification)
-            instance = Material.objects.filter(**filter_kwargs).last()
+            instance = Material.objects.filter(**filter_kwargs).order_by('f_date', 'id').last()
             if instance:
                 _s_data = {'inventory_code': instance.inventory_code, 'inventory_name': instance.inventory_name,
                            'specification': instance.specification, 'unit_price': instance.unit_price}
