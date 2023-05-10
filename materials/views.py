@@ -32,7 +32,7 @@ class MaterialViewSet(ModelViewSet):
         '存货编码': 'inventory_code',
         '存货名称': 'inventory_name',
         '规格型号': 'specification',
-        '原币单价': 'unit_price'
+        '原币含税单价': 'tax_unit_price'
     }
 
     def list(self, request, *args, **kwargs):
@@ -92,11 +92,11 @@ class MaterialViewSet(ModelViewSet):
         # 查询结果
         results, code_list, name_list, specification_list = [], [], [], []
         for item in data:
-            inventory_code, inventory_name, specification, unit_price = item.get('存货编码'), item.get('存货名称'), item.get('规格型号'), item.get('原币单价')
+            inventory_code, inventory_name, specification, tax_unit_price = item.get('存货编码'), item.get('存货名称'), item.get('规格型号'), item.get('原币含税单价')
             inventory_code = '' if not inventory_code else (inventory_code.strip() if isinstance(inventory_code, str) else str(inventory_code).rstrip('.0'))
             inventory_name = '' if not inventory_name else (inventory_name.strip() if isinstance(inventory_name, str) else str(inventory_name).rstrip('.0'))
             specification = '' if not specification else (specification.strip() if isinstance(specification, str) else str(specification).rstrip('.0'))
-            unit_price = '' if not unit_price else unit_price
+            tax_unit_price = '' if not tax_unit_price else tax_unit_price
             filter_kwargs = {}
             if all([inventory_code, inventory_name, specification]):
                 filter_kwargs = {'inventory_code': inventory_code, 'inventory_name': inventory_name, 'specification': specification}
@@ -114,10 +114,10 @@ class MaterialViewSet(ModelViewSet):
             instance = Material.objects.filter(**filter_kwargs).order_by('f_date', 'id').last()
             if instance:
                 _s_data = {'inventory_code': instance.inventory_code, 'inventory_name': instance.inventory_name,
-                           'specification': instance.specification, 'unit_price': instance.unit_price}
+                           'specification': instance.specification, 'tax_unit_price': instance.tax_unit_price}
             else:
                 _s_data = {'inventory_code': inventory_code, 'inventory_name': inventory_name,
-                           'specification': specification, 'unit_price': unit_price}
+                           'specification': specification, 'tax_unit_price': tax_unit_price}
             results.append(_s_data)
         # 记录履历
         code_str = ','.join(code_list)
@@ -138,9 +138,9 @@ class MaterialViewSet(ModelViewSet):
         if df.empty:
             raise ValidationError('文件内容为空!')
         # 必须导入的项目
-        must_set = ['存货编码', '存货名称', '规格型号', '原币含税单价', '原币单价']
+        must_set = ['存货编码', '存货名称', '规格型号', '原币含税单价']
         if set(df.columns) & set(must_set) != set(must_set):
-            raise ValidationError('导入数据必须包含存货编码、存货名称、规格型号、原币含税单价、原币单价!')
+            raise ValidationError('导入数据必须包含存货编码、存货名称、规格型号、原币含税单价!')
         # 获取默认排序
         g_set = list(GlobalCode.objects.filter(delete_flag=False, global_type__delete_flag=False, global_type__type_name='物料信息列顺序').order_by('seq').values_list('global_name', flat=True))
         # 存在不同列
@@ -165,13 +165,15 @@ class MaterialViewSet(ModelViewSet):
             inventory_code = item.get('存货编码', None)
             if inventory_code:
                 inventory_code = str(int(inventory_code))
+            tax_unit_price = round(item.get('原币含税单价'), 3) if item.get('原币含税单价') else None
+            total_value_tax = round(item.get('原币价税合计'), 3) if item.get('原币价税合计') else None
             s_data = {'seq': item.get('序号', None), 'choice': item.get('选择', None), 'business_type': item.get('业务类型', None),
                       'order_id': item.get('订单编号', None), 'f_date': item.get('日期').date() if item.get('日期') else None,
                       'department': item.get('部门', None), 'salesman': item.get('业务员', None), 'currency': item.get('币种', None),
                       'inventory_code': inventory_code, 'inventory_name': item.get('存货名称', None), 'supplier': item.get('供应商', None),
                       'specification': item.get('规格型号', None), 'unit': item.get('主计量', None), 'quantity': item.get('数量', None),
-                      'tax_unit_price': item.get('原币含税单价', None), 'unit_price': item.get('原币单价', None), 'amount': item.get('原币金额', None),
-                      'tax_rate': item.get('税率', None), 'total_value_tax': item.get('原币价税合计', None), 'pay_terms': item.get('付款条件', None),
+                      'tax_unit_price': tax_unit_price, 'unit_price': item.get('原币单价', None), 'amount': item.get('原币金额', None),
+                      'tax_rate': item.get('税率', None), 'total_value_tax': total_value_tax, 'pay_terms': item.get('付款条件', None),
                       'cumulative_export_quantity': item.get('累计出口数量', None), 'project_code': item.get('项目编码', None),
                       'project_name': item.get('项目名称', None), 'documenter': item.get('制单人', None), 'closers': item.get('行关闭人', None),
                       'requirement_desc': item.get('需求分类代码说明', None), 'unbilled': item.get('未开票量', None), 'billing_status': item.get('开票状态', None),
