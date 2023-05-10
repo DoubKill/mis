@@ -46,7 +46,7 @@ REST_FRAMEWORK_EXTENSIONS = {
 DATABASES = {
     'default': {
         'ENGINE': os.getenv('MES_ENGINE', 'django.db.backends.mysql'),  # 数据库引擎
-        'NAME': os.getenv('MES_DATABASE_NAME', 'test_local'),  # 数据库名称
+        'NAME': os.getenv('MES_DATABASE_NAME', 'test'),  # 数据库名称
         'USER': os.getenv('MES_DATABASE_USERNAME', 'root'),  # 用户名
         'PASSWORD': os.getenv('MES_DATABASE_PASSWORD', '123456'),  # 密码
         'HOST': os.getenv('MES_DATABASE_HOSTNAME', '10.10.120.55'),  # HOST
