@@ -7,7 +7,8 @@ class ProblemFilter(django_filters.rest_framework.FilterSet):
     unusual_item = django_filters.CharFilter(field_name='unusual_item', lookup_expr='icontains')
     explanation = django_filters.CharFilter(field_name='explanation', lookup_expr='icontains')
     department = django_filters.CharFilter(field_name='department', lookup_expr='icontains')
+    project_name = django_filters.CharFilter(field_name='project_name', lookup_expr='icontains')
 
     class Meta:
         model = ProjectSummary
-        fields = ('id', 'seq', 'raise_date', 'unusual_item', 'explanation', 'department', 'actual_date', 'status')
+        fields = ('id', 'seq', 'raise_date', 'unusual_item', 'explanation', 'department', 'actual_date', 'status', 'project_name')

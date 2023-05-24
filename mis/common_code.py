@@ -4,6 +4,7 @@ from urllib import parse
 from io import BytesIO
 
 import xlrd
+import xlwt
 from django.db.models import ProtectedError
 from django.db.transaction import atomic
 from django.http import HttpResponse
@@ -109,6 +110,37 @@ def len_byte(value):
     return int(length)
 
 
+# 样式设置
+def set_Style(name, size, color, borders_size, color_fore, blod=False):
+    style = xlwt.XFStyle()  # 初始化样式
+    # 字体
+    font = xlwt.Font()
+    font.name = name
+    font.height = 20 * size  # 字号
+    font.bold = blod  # 加粗
+    font.colour_index = color  # 默认：0x7FFF 黑色：0x08
+    style.font = font
+    # 居中
+    alignment = xlwt.Alignment()  # 居中
+    alignment.horz = xlwt.Alignment.HORZ_CENTER
+    alignment.vert = xlwt.Alignment.VERT_CENTER
+    style.alignment = alignment
+    # 边框
+    borders = xlwt.Borders()
+    borders.left = xlwt.Borders.THIN
+    borders.right = xlwt.Borders.THIN
+    borders.top = xlwt.Borders.THIN
+    borders.bottom = borders_size  # 自定义：1：细线；2：中细线；3：虚线；4：点线
+    style.borders = borders
+    # 背景颜色
+    pattern = xlwt.Pattern()
+    pattern.pattern = xlwt.Pattern.SOLID_PATTERN  # 设置背景颜色的模式(NO_PATTERN; SOLID_PATTERN)
+    pattern.pattern_fore_colour = color_fore  # 默认：无色：0x7FFF；黄色：0x0D；蓝色：0x0C
+    style.pattern = pattern
+
+    return style
+
+
 # 数据导出通用方法 ===>服务器上生成导出文件，前端访问，通过nginx服务器返回更高效
 def gen_template_response(export_fields_dict, data, file_name,
                           sheet_name='sheet1', template_file='xlsx_template/example.xlsx'):
@@ -147,6 +179,48 @@ def gen_template_response(export_fields_dict, data, file_name,
         sheet.column_dimensions[get_column_letter(col_num + 1)].width = col_width[data_key] / 256
 
     wb.save(excel_file)
+    out_url = excel_file.replace(settings.MEDIA_ROOT, settings.MEDIA_URL, 1)
+    url = parse.quote(out_url)
+    return Response(data={"url": url})
+
+
+def gen_excels_response(export_fields_dict, export_data, file_name, handle_str=False):
+    """同样内容的sheet按照项目导出一个execl"""
+    export_fields = list(export_fields_dict.values())
+    sheet_heads = list(export_fields_dict.keys())
+    wb = xlwt.Workbook(encoding='utf8')
+    excel_file = os.path.join(settings.MEDIA_ROOT, 'outfile', file_name)
+    if not os.path.exists(os.path.dirname(excel_file)):
+        os.makedirs(os.path.dirname(excel_file))
+    for sheet_name, s_data in export_data.items():
+        sheet = wb.add_sheet(sheet_name, cell_overwrite_ok=True)
+        if not s_data:
+            continue
+        # 合并单元格
+        sheet.write_merge(0, 1, 0, 10, s_data[0].get('problem_title'), set_Style('仿宋', 12, 0x7FFF, 1, 0x7FFF, blod=True))
+        col_width = {}
+        for idx, sheet_head in enumerate(sheet_heads):
+            sheet.write(2, idx, sheet_head, set_Style('仿宋', 9, 0x7FFF, 1, 0x7FFF, blod=False))
+            h_w = 256 * (len_byte(sheet_head) + 2)
+            col_width[sheet_head] = h_w if h_w <= 65536 else 65536
+
+        data_row = 3
+        for data in s_data:
+            for col_num, data_key in enumerate(export_fields):
+                set_value = "否" if data[data_key] is False else ("是" if data[data_key] is True else data[data_key])
+                if handle_str and isinstance(set_value, str):
+                    set_value = cell.cell.ILLEGAL_CHARACTERS_RE.sub(r'', set_value)
+                sheet.write(data_row, col_num, set_value, set_Style('仿宋', 9, 0x7FFF, 1, 0x7FFF, blod=False))
+                # 设置宽度
+                c_width = 256 * (len_byte(set_value) + 2) if 256 * (len_byte(set_value) + 2) <= 65536 else 65536
+                if col_width[sheet_heads[col_num]] < c_width:
+                    col_width[sheet_heads[col_num]] = c_width
+            data_row += 1
+        # 设置宽度
+        for col_num, data_key in enumerate(sheet_heads):
+            sheet.col(col_num).width = col_width[data_key]
+    wb.save(excel_file)
+    # 重新定位到开始
     out_url = excel_file.replace(settings.MEDIA_ROOT, settings.MEDIA_URL, 1)
     url = parse.quote(out_url)
     return Response(data={"url": url})

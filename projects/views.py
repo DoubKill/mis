@@ -1,5 +1,6 @@
 import logging
 import pandas as pd
+from datetime import datetime
 from django.db.models import Max, Count, F
 from django.db.transaction import atomic
 from django.utils.decorators import method_decorator
@@ -12,6 +13,7 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
 from basics.models import GlobalCode
+from mis.common_code import gen_excels_response
 from mis.derorators import api_recorder
 from projects.filters import ProblemFilter
 from projects.models import ProjectSummary, UploadResource
@@ -61,7 +63,19 @@ class ProblemViewSet(ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         """列表页"""
+        export = self.request.query_params.get('export')
         queryset = self.filter_queryset(self.get_queryset())
+        if export:
+            if not queryset:
+                raise ValidationError('没有数据可以导出')
+            export_data = {}
+            serializer_data = self.get_serializer(queryset, many=True).data
+            for item in serializer_data:
+                project_name = item['project_name']
+                export_data.setdefault(project_name, []).append(item)
+            file_name = '项目问题汇总.xlsx'
+            columns_set = dict(GlobalCode.objects.filter(global_type__type_name='项目问题导入列', global_type__use_flag=True, use_flag=True).values_list('global_name', 'description'))
+            return gen_excels_response(columns_set, export_data, file_name)
 
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -113,11 +127,13 @@ class ProblemViewSet(ModelViewSet):
                     remark = _data.get(columns_set.get('remark'))
                     if not any([raise_date, unusual_item, solution, department, hope_date, plan_date, actual_date, status]):
                         continue
-                    _temp = {'seq': seq, 'raise_date': raise_date.strftime('%Y-%m-%d') if raise_date else raise_date, 'unusual_item': unusual_item,
-                             'solution': solution, 'department': department, 'hope_date': hope_date.strftime('%Y-%m-%d') if hope_date else hope_date,
-                             'plan_date': plan_date.strftime('%Y-%m-%d') if plan_date else plan_date, 'status': status, 'remark': remark,
-                             'actual_date': actual_date.strftime('%Y-%m-%d') if actual_date else actual_date, 'problem_title': problem_title,
-                             'project_name': sheet_name, 'times': times}
+                    h_raise_date = raise_date if not isinstance(raise_date, datetime) else raise_date.strftime('%Y-%m-%d')
+                    h_plan_date = plan_date if not isinstance(plan_date, datetime) else plan_date.strftime('%Y-%m-%d')
+                    h_hope_date = hope_date if not isinstance(hope_date, datetime) else hope_date.strftime('%Y-%m-%d')
+                    h_actual_date = actual_date if not isinstance(actual_date, datetime) else actual_date.strftime('%Y-%m-%d')
+                    _temp = {'seq': seq, 'raise_date': h_raise_date, 'unusual_item': unusual_item, 'solution': solution, 'department': department,
+                             'hope_date': h_hope_date, 'plan_date': h_plan_date, 'status': status, 'remark': remark, 'actual_date': h_actual_date,
+                             'problem_title': problem_title, 'project_name': sheet_name, 'times': times}
                     created_data.append(_temp)
             except Exception as e:
                 error_log.error(f'导入失败, sheet: {sheet_name}, reason: {e.args[0]}')

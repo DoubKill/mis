@@ -43,7 +43,14 @@ permission_data = [
     {'id': 22, 'code': 'user_operation_log', 'name': '操作日志查询', 'parent_id': None, 'category_name': '系统管理'},
     {'id': 23, 'code': 'view_user_operation_log', 'name': '查看', 'parent_id': 22},
 
-    # 下一个开始: 24
+    {'id': 24, 'code': 'problem', 'name': '项目问题点管理', 'parent_id': None, 'category_name': '项目问题点管理'},
+    {'id': 25, 'code': 'view_problem', 'name': '查看', 'parent_id': 24},
+    {'id': 26, 'code': 'import_problem', 'name': '导入', 'parent_id': 24},
+    {'id': 27, 'code': 'add_problem', 'name': '新建', 'parent_id': 24},
+    {'id': 28, 'code': 'change_problem', 'name': '编辑', 'parent_id': 24},
+    {'id': 29, 'code': 'export_problem', 'name': '导出', 'parent_id': 24},
+
+    # 下一个开始: 30
 
 ]
 
