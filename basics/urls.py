@@ -1,9 +1,15 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from basics.views import CommonCodeView
+from basics.views import CommonCodeView, GlobalCodeViewSet, GlobalCodeTypeViewSet
 
 router = DefaultRouter()
+
+# 公共代码类型
+router.register(r'global-types', GlobalCodeTypeViewSet)
+
+# 公共代码
+router.register(r'global-codes', GlobalCodeViewSet)
 
 
 urlpatterns = [

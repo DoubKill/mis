@@ -42,6 +42,7 @@ urlpatterns = [
     path('api/v1/user/', include('user.urls')),
     path('api/v1/basics/', include('basics.urls')),
     path('api/v1/materials/', include('materials.urls')),
+    path('api/v1/projects/', include('projects.urls')),
     path('admin/', admin.site.urls),
     # path('docs/', include_docs_urls(title="MCS系统文档", description="MCS系统文档")),
     # path('api-auth/', include('rest_framework.urls')),

@@ -26,6 +26,18 @@ error_logger = logging.getLogger('error_log')
 from user.models import User, Permissions
 
 
+class CommonDeleteMixin(object):
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.use_flag:
+            instance.use_flag = 0
+        else:
+            instance.use_flag = 1
+        instance.last_updated_user = request.user
+        instance.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class CommonExportListMixin(mixins.ListModelMixin):
     SHEET_NAME = 'sheet1'
     TEMPLATE_FILE = 'xlsx_template/example.xlsx'

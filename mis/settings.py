@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'django_filters',
     'materials.apps.MaterialsConfig',
     'user.apps.UserConfig',
+    'projects.apps.ProjectConfig',
     'basics.apps.BasicsConfig',
     'django_extensions',
 ]

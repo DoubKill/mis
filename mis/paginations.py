@@ -23,3 +23,14 @@ class DefaultPageNumberPagination(PageNumberPagination):
             ('previous', self.get_previous_link()),
             ('results', data)
         ]))
+
+
+class SinglePageNumberPagination(PageNumberPagination):
+    """
+    继承基础分页，只返回results
+    """
+    page_size = 10000000
+    def get_paginated_response(self, data):
+        return Response(OrderedDict([
+            ('results', data)
+        ]))
