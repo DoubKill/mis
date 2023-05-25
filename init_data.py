@@ -49,8 +49,9 @@ permission_data = [
     {'id': 27, 'code': 'add_problem', 'name': '新建', 'parent_id': 24},
     {'id': 28, 'code': 'change_problem', 'name': '编辑', 'parent_id': 24},
     {'id': 29, 'code': 'export_problem', 'name': '导出', 'parent_id': 24},
+    {'id': 30, 'code': 'delete_problem', 'name': '删除', 'parent_id': 24},
 
-    # 下一个开始: 30
+    # 下一个开始: 31
 
 ]
 
